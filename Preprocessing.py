@@ -81,11 +81,25 @@ def generateClusterInputFile(corpus):
 
 	ClusterInputFile_ptr.close()
 
-def convertFiletoMatFormat(folder):
+def convertFiletoMatFormat():
 	os.chdir("../..")
 	os.system("perl doc2mat/doc2mat -mystoplist=stopwords.txt -nlskip=1 -skipnumeric SentencesToCluster.txt ClutoInput.mat")
-	os.chdir(folder)
 
+def clusterSentences(folder):
+	line_count = 0
+	ClusterFile = open("SentencesToCluster.txt",'r')
+	for line in ClusterFile.readlines():
+		line_count+=1
+	print line_count	
+	os.system("cluto/Linux/vcluster -clmethod=rbr -sim=cos -cstype=best -niter=100 -seed=45 ClutoInput.mat "+str(line_count/5))
+
+	# Here -clmethod can be replaced with 'direct' for conventional k-Means
+	# But in general 'rbr', works for efficiently
+	# Limiting maximum number of iteration to 100 and setting similarity to 'cosine'
+	# seed determines the start of randomness selection points
+	# cstype chooses l2 as clustering criterion.
+
+	os.chdir(folder) 
 
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
@@ -93,7 +107,9 @@ for cluster in os.listdir('.'):
 	document_to_senctence_corpus = extractDocumentCorpus(cluster)
 	idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
 	generateClusterInputFile(document_to_senctence_corpus)
-	convertFiletoMatFormat(datasetFolder)
+	convertFiletoMatFormat()
+
+	clusterSentences(datasetFolder)
 
 
 
