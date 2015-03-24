@@ -1,0 +1,506 @@
+#!/usr/bin/perl
+#
+# doc2mat
+#
+# This file contains a simple program for creating a CLUTO-compatible 
+# mat-file from a set of documents. 
+# For more information on how to use it do a 'doc2mat -help'
+# 
+# V1.0.0        Wed Sep 11 23:13:55 CDT 2002 
+#
+
+use Getopt::Long;
+use Pod::Usage;
+
+#use Pod::Html;
+#pod2html("doc2mat", "--outfile=doc2mat.html");
+
+
+#==============================================================================
+# Built-in stop list
+#==============================================================================
+%stop_list = ('different','1', 'n','1', 'necessary','1', 'need','1', 'needed','1', 'needing','1', 'newest','1',
+              'next','1', 'no','1', 'nobody','1', 'non','1', 'noone','1', 'not','1', 'nothing','1', 'now','1',
+              'nowhere','1', 'of','1', 'off','1', 'often','1', 'new','1', 'old','1', 'older','1', 'oldest','1',
+              'on','1', 'once','1', 'one','1', 'only','1', 'open','1', 'again','1', 'among','1', 'already','1',
+              'about','1', 'above','1', 'against','1', 'alone','1', 'after','1', 'also','1', 'although','1',
+              'along','1', 'always','1', 'an','1', 'across','1', 'b','1', 'and','1', 'another','1', 'ask','1',
+              'c','1', 'asking','1', 'asks','1', 'backed','1', 'away','1', 'a','1', 'should','1', 'show','1',
+              'came','1', 'all','1', 'almost','1', 'before','1', 'began','1', 'back','1', 'backing','1',
+              'be','1', 'became','1', 'because','1', 'becomes','1', 'been','1', 'at','1', 'behind','1',
+              'being','1', 'best','1', 'better','1', 'between','1', 'big','1', 'showed','1', 'ended','1',
+              'ending','1', 'both','1', 'but','1', 'by','1', 'asked','1', 'backs','1', 'can','1', 'cannot','1',
+              'number','1', 'numbers','1', 'o','1', 'few','1', 'find','1', 'finds','1', 'clearly','1', 
+              'her','1', 'herself','1', 'come','1', 'could','1', 'd','1', 'did','1', 'here','1', 'beings','1',
+              'fact','1', 'far','1', 'felt','1', 'become','1', 'first','1', 'for','1', 'four','1', 'from','1',
+              'full','1', 'fully','1', 'furthers','1', 'gave','1', 'general','1', 'generally','1', 'get','1',
+              'gets','1', 'gives','1', 'facts','1', 'go','1', 'going','1', 'good','1', 'goods','1', 'certain','1',
+              'certainly','1', 'clear','1', 'great','1', 'greater','1', 'greatest','1', 'group','1', 'grouped','1',
+              'grouping','1', 'groups','1', 'h','1', 'got','1', 'has','1', 'g','1', 'have','1', 'having','1',
+              'he','1', 'further','1', 'furthered','1', 'had','1', 'furthering','1', 'itself','1', 'faces','1',
+              'highest','1', 'him','1', 'himself','1', 'his','1', 'how','1', 'however','1', 'i','1', 'if','1',
+              'important','1', 'interests','1', 'into','1', 'is','1', 'it','1', 'its','1', 'j','1', 'anyone','1',
+              'anything','1', 'anywhere','1', 'are','1', 'area','1', 'areas','1', 'around','1', 'as','1', 'seconds','1',
+              'see','1', 'seem','1', 'seemed','1', 'seeming','1', 'seems','1', 'sees','1', 'right','1', 'several','1',
+              'shall','1', 'she','1', 'enough','1', 'even','1', 'evenly','1', 'over','1', 'p','1', 'part','1',
+              'parted','1', 'parting','1', 'parts','1', 'per','1', 'down','1', 'place','1', 'places','1',
+              'point','1', 'pointed','1', 'pointing','1', 'points','1', 'possible','1', 'present','1', 'presented','1',
+              'presenting','1', 'ends','1', 'high','1', 'mrs','1', 'much','1', 'must','1', 'my','1', 'myself','1',
+              'presents','1', 'down','1', 'problem','1', 'problems','1', 'put','1', 'puts','1', 'q','1', 'quite','1',
+              'will','1', 'with','1', 'within','1', 'r','1', 'rather','1', 'really','1', 'room','1', 'rooms','1',
+              's','1', 'said','1', 'same','1', 'right','1', 'showing','1', 'shows','1', 'side','1', 'sides','1',
+              'since','1', 'small','1', 'smaller','1', 'smallest','1', 'so','1', 'some','1', 'somebody','1',
+              'someone','1', 'something','1', 'somewhere','1', 'state','1', 'states','1', 'such','1', 'sure','1',
+              't','1', 'take','1', 'taken','1', 'than','1', 'that','1', 'the','1', 'their','1', 'then','1',
+              'there','1', 'therefore','1', 'these','1', 'x','1', 'thought','1', 'thoughts','1', 'three','1',
+              'through','1', 'thus','1', 'to','1', 'today','1', 'together','1', 'too','1', 'took','1', 'toward','1',
+              'turn','1', 'turned','1', 'turning','1', 'turns','1', 'two','1', 'still','1', 'u','1', 'under','1',
+              'until','1', 'up','1', 'others','1', 'upon','1', 'us','1', 'use','1', 'used','1', 'uses','1',
+              'v','1', 'very','1', 'w','1', 'want','1', 'wanted','1', 'wanting','1', 'wants','1', 'was','1',
+              'way','1', 'we','1', 'well','1', 'wells','1', 'went','1', 'were','1', 'what','1', 'when','1',
+              'where','1', 'whether','1', 'which','1', 'while','1', 'who','1', 'whole','1', 'y','1', 'year','1',
+              'years','1', 'yet','1', 'you','1', 'everyone','1', 'everything','1', 'everywhere','1', 'young','1',
+              'younger','1', 'youngest','1', 'your','1', 'yours','1', 'z','1', 'ever','1', 'works','1', 'every','1',
+              'everybody','1', 'f','1', 'face','1', 'other','1', 'our','1', 'out','1', 'just','1', 'interesting','1',
+              'high','1', 'might','1', 'k','1', 'keep','1', 'keeps','1', 'give','1', 'given','1', 'higher','1',
+              'kind','1', 'knew','1', 'know','1', 'known','1', 'knows','1', 'l','1', 'large','1', 'largely','1',
+              'last','1', 'later','1', 'latest','1', 'least','1', 'less','1', 'needs','1', 'never','1', 'newer','1',
+              'let','1', 'lets','1', 'like','1', 'likely','1', 'long','1', 'high','1', 'longer','1', 'longest','1',
+              'm','1', 'made','1', 'make','1', 'making','1', 'man','1', 'many','1', 'may','1', 'me','1', 'member','1',
+              'members','1', 'men','1', 'more','1', 'in','1', 'interest','1', 'interested','1', 'most','1', 'mostly','1',
+              'mr','1', 'opened','1', 'opening','1', 'new','1', 'opens','1', 'or','1', 'perhaps','1', 'order','1',
+              'ordered','1', 'ordering','1', 'orders','1', 'differ','1', 'differently','1', 'do','1', 'does','1',
+              'done','1', 'downed','1', 'downing','1', 'downs','1', 'they','1', 'thing','1', 'things','1', 'think','1',
+              'thinks','1', 'this','1', 'those','1', 'ways','1', 'why','1', 'without','1', 'work','1', 'worked','1',
+              'working','1', 'would','1', 'during','1', 'e','1', 'each','1', 'early','1', 'either','1', 'end','1',
+              'though','1', 'still','1', 'whose','1', 'saw','1', 'say','1', 'says','1', 'them','1', 'second','1',
+              'any','1', 'anybody','1');  
+
+
+#==============================================================================
+# Parse Command Line Arguments
+#==============================================================================
+$nostem      = 0;
+$nostop      = 0;
+$mystoplist  = '';
+$minwlen     = 3;
+$nlskip      = 0;
+$tokfile     = 0;
+$skipnumeric = 0;
+$help        = '';
+$docfile     = '';
+$matfile     = '';
+$clabelfile  = '';
+
+GetOptions('skipnumeric' => \$skipnumeric, 'tokfile' => \$tokfile, 'nostem' => \$nostem,, 'nostop' => \$nostop, 'mystoplist=s' => \$mystoplist, 'minwlen=i' => \$minwlen, 'nlskip=i' => \$nlskip, 'help|?' => \$help);
+
+pod2usage(-verbose => 2) if $help;
+pod2usage(-verbose => 2) if $#ARGV != 1;
+
+$docfile       = $ARGV[0];
+$matfile       = $ARGV[1];
+$clabelfile    = $matfile . ".clabel";
+$rlabelfile    = $matfile . ".rlabel";
+$tokenizedfile = $matfile . ".tokens";
+$tmpmatfile    = $matfile . ".tmp";
+
+-e $docfile or die "***Error: Input document file ", $docfile, " does not exist.\n";
+
+if ($mystoplist) {
+  -e $mystoplist or die "***Error: User supplied stop list file ", $mystoplist, " does not exist.\n";
+}
+
+
+
+#==============================================================================
+# Read the user-supplied stop-list if any 
+#==============================================================================
+%my_stop_list = ();
+
+if ($mystoplist) {
+  print "Reading user supplied stop list file...\n";
+
+  open(FPIN, "<$mystoplist");
+
+  while (<FPIN>) {
+    tr/A-Z/a-z/;    # change to lower case 
+    s/^\s+//;       # remove leading spaces
+    y/a-z0-9/ /cs;  # retain only alpha-numeric entries
+    s/\s+/ /g;      # compact spaces
+    chop;
+
+    @tokens = split(/\s+/, $_);
+
+    foreach $token (@tokens) {
+      $my_stop_list{$token} = 1;
+    }
+  }
+  close(FPIN);
+
+  print "Done.\n";
+
+  if ($nostop) {
+    %stop_list = ();
+    $nostop = 0;
+  }
+}
+
+
+#==============================================================================
+# Setup the data-structures for the stemmer and initialize it
+#==============================================================================
+%step2list = ('ational'=>'ate', 'tional'=>'tion', 'enci'=>'ence', 'anci'=>'ance', 
+              'izer'=>'ize', 'bli'=>'ble', 'alli'=>'al', 'entli'=>'ent', 'eli'=>'e', 
+              'ousli'=>'ous', 'ization'=>'ize', 'ation'=>'ate', 'ator'=>'ate', 
+              'alism'=>'al', 'iveness'=>'ive', 'fulness'=>'ful', 'ousness'=>'ous', 
+              'aliti'=>'al', 'iviti'=>'ive', 'biliti'=>'ble', 'logi'=>'log');
+
+%step3list = ('icate'=>'ic', 'ative'=>'', 'alize'=>'al', 'iciti'=>'ic', 'ical'=>'ic', 
+              'ful'=>'', 'ness'=>'');
+
+$c =    "[^aeiou]";          # consonant
+$v =    "[aeiouy]";          # vowel
+$C =    "${c}[^aeiouy]*";    # consonant sequence
+$V =    "${v}[aeiou]*";      # vowel sequence
+
+$mgr0 = "^(${C})?${V}${C}";               # [C]VC... is m>0
+$meq1 = "^(${C})?${V}${C}(${V})?" . '$';  # [C]VC[V] is m=1
+$mgr1 = "^(${C})?${V}${C}${V}${C}";       # [C]VCVC... is m>1
+$_v   = "^(${C})?${v}";                   # vowel in stem
+
+
+#==============================================================================
+# Get into the main text-processing part of the code
+#==============================================================================
+open(DOCFP, "<$docfile");
+open(MATFP, ">$tmpmatfile");
+if ($tokfile) {
+  open(TOKENFP, ">$tokenizedfile");
+}
+
+if ($nlskip > 0) {
+  open(RLABELFP, ">$rlabelfile");
+}
+
+%WORDID    = ();
+%WORDNAMES = ();
+
+$nrows  = 0;
+$ncols  = 0;
+$nnz    = 0;
+
+print "Reading document file...\n";
+
+while (<DOCFP>) {
+  tr/A-Z/a-z/;
+  y/a-z0-9/ /cs;
+  s/^\s+//;
+  s/\s+/ /g;
+  chop;
+
+  @tokens = split(/\s+/, $_);
+
+  # Write the skipped tokens as the row-label of the file
+  if ($nlskip > 0) {
+    for ($i=0; $i<$nlskip; $i++) {
+      print RLABELFP $tokens[$i], " ";
+    }
+    print RLABELFP "\n";
+  }
+
+  # Construct the TF-representation for this document
+  %TF = ();
+  for ($i=$nlskip; $i<=$#tokens; $i++) {
+    next if ($skipnumeric && ($tokens[$i] =~ /\d/));
+    next if (length($tokens[$i]) < $minwlen);
+
+    if ($nostop) {
+      if ($nostem) {
+        $newword = $tokens[$i];
+      }
+      else {
+        $newword = stem($tokens[$i]);
+      }
+
+      if ($tokfile) {
+        print TOKENFP $newword, " ";
+      }
+
+      $TF{$newword}++;
+    }
+    else {
+      if (!$stop_list{$tokens[$i]} && !$my_stop_list{$tokens[$i]}) {
+        if ($nostem) {
+          $newword = $tokens[$i];
+        }
+        else {
+          $newword = stem($tokens[$i]);
+        }
+
+        if ($tokfile) {
+          print TOKENFP $newword, " ";
+        }
+
+        $TF{$newword}++;
+      }
+    }
+
+  }
+
+  if ($tokfile) {
+    print TOKENFP "\n";
+  }
+
+  # Write out the vector for this document
+  foreach $word (keys %TF) {
+    if (!$WORDID{$word}) {
+      $ncols++;
+      $WORDID{$word}     = $ncols;
+      $WORDNAMES[$ncols] = $word;
+    }
+    print MATFP "$WORDID{$word} $TF{$word} ";
+    $nnz++;
+  }
+  $nrows++;
+
+  print MATFP "\n";
+}
+
+close(DOCFP);
+close(MATFP);
+
+if ($tokfile) {
+  close(TOKENFP);
+}
+
+if ($nlskip > 0) {
+  close(RLABELFP);
+}
+
+print "Done.\n";
+
+#----------------------------------------------------------------
+# Write out the actual mat file with the nrows, ncols, nnz fields
+#----------------------------------------------------------------
+open(MATFP, ">$matfile");
+open(FPIN,  "<$tmpmatfile");
+
+print "Writing matrix file...\n";
+
+print MATFP $nrows, " ", $ncols, " ", $nnz, "\n";
+while (<FPIN>) {
+  print MATFP $_;
+}
+
+close(MATFP);
+close(FPIN);
+
+unlink $tmpmatfile;
+
+print "Done.\n";
+
+#----------------------------------------------------------------
+# Write out the clabelfile
+#----------------------------------------------------------------
+print "Writing clabel file...\n";
+
+open(CLABELFP, ">$clabelfile");
+
+for ($i=1; $i<=$ncols; $i++) {
+  print CLABELFP $WORDNAMES[$i], "\n";
+}
+
+close(CLABELFP);
+
+print "Done.\n";
+
+
+#==============================================================================
+# The main part of the stemmer
+#==============================================================================
+sub stem
+{  
+  my ($stem, $suffix, $firstch);
+  my $w = shift;
+  if (length($w) < 3) { return $w; } # length at least 3
+  # now map initial y to Y so that the patterns never treat it as vowel:
+  $w =~ /^./; $firstch = $&;
+  if ($firstch =~ /^y/) { $w = ucfirst $w; }
+
+  # Step 1a
+  if ($w =~ /(ss|i)es$/) { $w=$`.$1; }
+  elsif ($w =~ /([^s])s$/) { $w=$`.$1; }
+  # Step 1b
+  if ($w =~ /eed$/) { if ($` =~ /$mgr0/o) { chop($w); } }
+  elsif ($w =~ /(ed|ing)$/)
+  {  $stem = $`;
+     if ($stem =~ /$_v/o)
+     {  $w = $stem;
+        if ($w =~ /(at|bl|iz)$/) { $w .= "e"; }
+        elsif ($w =~ /([^aeiouylsz])\1$/) { chop($w); }
+        elsif ($w =~ /^${C}${v}[^aeiouwxy]$/o) { $w .= "e"; }
+     }
+  }
+  # Step 1c
+  if ($w =~ /y$/) { $stem = $`; if ($stem =~ /$_v/o) { $w = $stem."i"; } }
+
+  # Step 2
+  if ($w =~ /(ational|tional|enci|anci|izer|bli|alli|entli|eli|ousli|ization|ation|ator|alism|iveness|fulness|ousness|aliti|iviti|biliti|logi)$/)
+  { $stem = $`; $suffix = $1;
+    if ($stem =~ /$mgr0/o) { $w = $stem . $step2list{$suffix}; }
+  }
+
+  # Step 3
+  if ($w =~ /(icate|ative|alize|iciti|ical|ful|ness)$/)
+  { $stem = $`; $suffix = $1;
+    if ($stem =~ /$mgr0/o) { $w = $stem . $step3list{$suffix}; }
+  }
+
+  # Step 4
+  if ($w =~ /(al|ance|ence|er|ic|able|ible|ant|ement|ment|ent|ou|ism|ate|iti|ous|ive|ize)$/)
+  { $stem = $`; if ($stem =~ /$mgr1/o) { $w = $stem; } }
+  elsif ($w =~ /(s|t)(ion)$/)
+  { $stem = $` . $1; if ($stem =~ /$mgr1/o) { $w = $stem; } }
+
+  #  Step 5
+  if ($w =~ /e$/)
+  { $stem = $`;
+    if ($stem =~ /$mgr1/o or
+        ($stem =~ /$meq1/o and not $stem =~ /^${C}${v}[^aeiouwxy]$/o))
+       { $w = $stem; }
+  }
+  if ($w =~ /ll$/ and $w =~ /$mgr1/o) { chop($w); }
+
+  # and turn initial Y back to y
+  if ($firstch =~ /^y/) { $w = lcfirst $w; }
+  return $w;
+}
+
+
+
+
+#==============================================================================
+# Create the man-page
+#==============================================================================
+__END__
+
+=head1 NAME
+
+doc2mat - Converting documents into the vector-space format used by CLUTO
+
+=head1 SYNOPSIS
+
+doc2mat [options] doc-file mat-file
+
+=head1 ARGUMENTS
+
+B<doc2mat> takes as input two arguments. The first argument is the
+name of the file that stores the documents to be converted into 
+the vector-space format used by CLUTO and the second argument is
+the name of the file that stores the resulting document-term matrix.
+
+=over 4
+
+=item B<doc-file>
+
+This is the name of the file that stores the documents using one document 
+at each line format.
+
+=item B<mat-file>
+
+This is the name of the file that will store the generated CLUTO compatible 
+mat file, and the file-stem for the .clabel file and the .rlabel file if it
+is applicable.
+
+=back
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-nostem>
+
+Disable word stemming. By default all words are stemmed.
+
+=item B<-nostop>
+
+Disable the elimination of stop words using the internal list of 
+stop words. By default stop words are eliminated. 
+
+=item B<-mystoplist=file>
+
+Specifies a user supplied file that specifies local stop-words.
+If the B<-nostop> option has been specified, then by providing
+a user-supplied file you essentially over-ride all internal stop
+words.
+
+=item B<-skipnumeric>
+
+Specifies that any words that contain numeric digits are to be 
+eliminated. By default, a token that contains numeric digits is 
+retained.
+
+=item B<-minwlen=int>
+
+Specifies the length of the smallest token to be kept prior to stemming.
+The default value is three.
+
+=item B<-nlskip=int> 
+
+Indicates the number of leading tokens to be ignored during
+text processing. This parameter is useful for ignoring any
+document identifier information that may be in the beginning
+of each document line. The default value is zero.
+
+=item B<-tokfile>
+
+Writes the token representation of each document after performing the
+tokenization and/or stemming and stop-word elimination.
+
+=item B<-help>
+
+Displays this information.
+
+=back
+
+=head1 DESCRIPTION
+
+B<doc2mat> convertes a set of documents into a vector-space format
+and stores the resulting document-term matrix into a mat-file that
+is compatible with CLUTO's clustering algorithms.
+
+The documents are supplied in the file I<doc-file>, and each document
+must be stored on a single line in that file. As a result, the total
+number of documents in the resulting document-term matrix will be equal
+to the number of rows in the file I<doc-file>.
+
+B<doc2mat> supports both word stemming (using Porter's stemming algorithm)
+and stop-word elimination. It contains a default list of stop-words that
+it can be either ignored or augmented by providing an file containing a
+list of words to be eliminated as well. This user-supplied stop-list
+file is supplied using the B<-mystoplist> option and should contain
+a white-space separated list of words. All of these words can be on 
+the same line or multiple lines. Note that stop-word elimination occurs
+before stemming, so the user-supplied stop words should not be stemmed.
+
+The tokenization performed by B<doc2mat> is quite straight-forward. It
+starts by replacing all non-alphanumeric characters with spaces, and
+then the white-space characters are used to break up the line into 
+tokens. Each of these tokens is then checked against the stop-list, 
+and if they are not there they get stemmed. By using the B<-skipnumeric> 
+option you can force B<doc2mat> to eliminate any tokens that contain
+numeric digits. Also, by specifying the B<-tokfile> option, B<doc2mat> 
+will create a file called I<mat-file.tokens>, in which each line stores 
+the tokenized form of each document.
+
+Some of leading fields of each line can potentially store document specific 
+information (e.g., document identifier, class label, I<etc>), and they can
+be ignored by using the B<-nlskip> option. In cases in which B<-nlskip> is
+greater than zero, the B<-nlskip> leading tokens are treated as the label
+of each row and they are written in the file called I<mat-file.rlabel>.
+
+=head1 AUTHOR
+
+George Karypis E<lt>karypis@cs.umn.eduE<gt>
+
+=cut

@@ -43,7 +43,6 @@ def extractDocumentCorpus(folder):
 	os.chdir("..")
 	return document_to_senctence_corpus
 
-
 def generateInverseDocFrequency(corpus):
 	total_docs = len(corpus.keys())
 	idf_scores = defaultdict(float)
@@ -67,7 +66,25 @@ def generateInverseDocFrequency(corpus):
 
 	return idf_scores	
 
+def generateClusterInputFile(corpus):
+	ClusterInputFile = "../../SentencesToCluster.txt"
+	ClusterInputFile_ptr = open(ClusterInputFile,'w')
+	for each_doc in corpus:
+		current_doc = corpus[each_doc]
+		sentences = []
+		sentences = current_doc.split('.')
+		print each_doc
+		print len(sentences)
+	#	break
+		for each_sentence in sentences:
+			ClusterInputFile_ptr.write(each_sentence+'\n')
 
+	ClusterInputFile_ptr.close()
+
+def convertFiletoMatFormat(folder):
+	os.chdir("../..")
+	os.system("perl doc2mat/doc2mat -mystoplist=stopwords.txt -nlskip=1 -skipnumeric SentencesToCluster.txt ClutoInput.mat")
+	os.chdir(folder)
 
 
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
@@ -75,6 +92,10 @@ os.chdir(datasetFolder)
 for cluster in os.listdir('.'):
 	document_to_senctence_corpus = extractDocumentCorpus(cluster)
 	idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
+	generateClusterInputFile(document_to_senctence_corpus)
+	convertFiletoMatFormat(datasetFolder)
+
+
 
 
 	################################################################
@@ -82,6 +103,10 @@ for cluster in os.listdir('.'):
 	#			Here we need to start clustering the Docs          #
 	# 															   #	
 	################################################################
+
+
+	## Assuming Here basically we have a clustered file which has sentences followed by the cluster they belong in 
+	## 	sorted order!.
 
 
 	break

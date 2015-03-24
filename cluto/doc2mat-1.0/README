@@ -1,0 +1,22 @@
+
+This file contains a simple perl script to convert a set of documents
+into the vector-space format required by CLUTO.
+
+To install it, edit the first line of the doc2mat file and set it to
+the location that perl is installed in your system. Once this is done, 
+you should then be able to run this script. It has been successfully 
+tested with perl versions 5.6 and 5.8.  
+
+Instructions on how to use it are available in doc2mat.html and can
+be viewed by doing a 'doc2mat -help'.
+
+The supplied ds1.raw file can be converted into a CLUTO compliant
+mat-file using the command:
+  
+  doc2mat -nlskip=1 ds1.raw ds1.mat
+
+
+Comments or bug reports please send email to karypis@cs.umn.edu
+
+George Karypis
+

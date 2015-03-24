@@ -1,0 +1,16 @@
+This file contains some of the datasets that were used in CLUTO's manual
+to illustrate the various algorithms. A brief description of them is
+as follows:
+
+genes1.mat         => Microarray gene expression dataset 
+genes2.mat         => Microarray gene expression dataset
+k1b.mat            => Sparse document dataset
+sports.mat         => Sparse document dataset
+tr23.mat           => Sparse document dataset
+tr23.graph         => The all-to-all similarity matrix for 
+                      tr23 it can be used as input to scluster
+t4.mat             => Synthetic 2D spatial dataset 
+t7.mat             => Synthetic 2D spatial dataset 
+
+
+
