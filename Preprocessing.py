@@ -92,14 +92,51 @@ def clusterSentences(folder):
 		line_count+=1
 	print line_count	
 	os.system("cluto/Linux/vcluster -clmethod=rbr -sim=cos -cstype=best -niter=100 -seed=45 ClutoInput.mat "+str(line_count/5))
-
+	return line_count/5
 	# Here -clmethod can be replaced with 'direct' for conventional k-Means
 	# But in general 'rbr', works for efficiently
 	# Limiting maximum number of iteration to 100 and setting similarity to 'cosine'
 	# seed determines the start of randomness selection points
 	# cstype chooses l2 as clustering criterion.
 
-	os.chdir(folder) 
+#	os.chdir(folder) 
+
+def mapSentencetoCluster():
+	sentenceFile = open("SentencesToCluster.txt",'r')
+	sentences = sentenceFile.readlines()
+	sentenceFile.close()
+
+	for idx in range(len(sentences)):
+	    sentences[idx] = sentences[idx].split('\n')[0]
+
+	# Creating cluster number index.
+
+	clusterFile = open("ClutoInput.mat.clustering."+str(noOfClusters),'r')
+	clusterIndex = clusterFile.readlines()
+	clusterFile.close()
+
+	for idx in range(len(clusterIndex)):
+	    clusterIndex[idx] = clusterIndex[idx].split('\n')[0]
+
+	# Merging the 2 together.
+
+	clusterSentenceIndex = []
+	for idx in range(len(clusterIndex)):
+	    temp = []
+	    temp.append(clusterIndex[idx])
+	    temp.append(sentences[idx])
+
+	    clusterSentenceIndex.append(temp)
+
+	clusterSentenceIndex.sort()
+
+	# Printing the sentences into the file.
+	outputIndexFile= open('sentence-cluster-sorted-index.txt','w')
+	for idx in range(len(clusterSentenceIndex)):
+		if int(clusterSentenceIndex[idx][0]) >= 0:			# Handles Unneccesary empty sentences
+			line = clusterSentenceIndex[idx][1]+'$'+clusterSentenceIndex[idx][0]+'\n'
+			outputIndexFile.write(line)
+	outputIndexFile.close()
 
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
@@ -108,8 +145,9 @@ for cluster in os.listdir('.'):
 	idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
 	generateClusterInputFile(document_to_senctence_corpus)
 	convertFiletoMatFormat()
+	noOfClusters = clusterSentences(datasetFolder)
+	mapSentencetoCluster()
 
-	clusterSentences(datasetFolder)
 
 
 
