@@ -8,6 +8,9 @@ from collections import defaultdict
 st = Stemmer('english')
 pattern=re.compile(r'[\d+\.]*[\d]+|[^\w]+') #pattern to detect numbers (real/integer) non alphanumeric (no underscore)
 
+Summary = []
+lamda = 5
+alpha  = 0.1
 #stopword dictionary from "stopwords.txt" file
 
 stopWordDict = defaultdict(int)
@@ -138,6 +141,80 @@ def mapSentencetoCluster():
 			outputIndexFile.write(line)
 	outputIndexFile.close()
 
+def consolidateClusters():
+	clusterSentencesFile = open('sentence-cluster-sorted-index.txt','r')
+	cluster_to_sentences_dict = defaultdict(list)
+	for line in clusterSentencesFile.readlines():
+		lin,cluster = line.split('$')
+		if cluster in cluster_to_sentences_dict:
+			cluster_to_sentences_dict[cluster].append(lin)
+		else:
+			cluster_to_sentences_dict[cluster] = [lin]
+
+	return cluster_to_sentences_dict				
+
+def removeStopWordsandStemming(sentence):
+	processed_sentence = []
+	for word in sentence:
+		if word not in stopWordDict:
+			processed_sentence.append(st.stemWord(word))
+
+	return processed_sentence		
+
+def cosine_similarity(sent1,sent2):
+	global idf_scores
+	cosine_sim_sum = 0.0
+	set_sent1 = set(removeStopWordsandStemming(sent1.split()))
+	set_sent2 = set(removeStopWordsandStemming(sent2.split()))
+	for word in set_sent1:
+		if (word in set_sent2) and (word in idf_scores):
+			cosine_sim_sum += (sent1.count(word)*sent2.count(word)*idf_scores[word]*idf_scores[word])
+
+	root_sum_sent1 = 0
+	root_sum_sent2 = 0
+	for word in set_sent1:
+		if word in idf_scores:
+			root_sum_sent1 += ((sent1.count(word)*idf_scores[word])**2)
+
+	for word in set_sent2:
+		if word in idf_scores:
+			root_sum_sent2 += ((sent2.count(word)*idf_scores[word])**2)
+
+	root_sum_sent1 = math.sqrt(root_sum_sent1)
+	root_sum_sent2 = math.sqrt(root_sum_sent2)
+
+	return ((cosine_sim_sum)/(root_sum_sent1*root_sum_sent2))
+
+def calculateSimilarityWithSummary(sentence):
+	global Summary
+	Summary_similarity = 0
+	for i in Summary:
+		Summary_similarity += cosine_similarity(sentence,i)
+
+	return Summary_similarity
+
+def calculaterSimilarityWithCorpus(sentence):
+	global cluster_to_sentences_dict
+	corpus_similarity = 0
+	for cluster in cluster_to_sentences_dict:
+		current_cluster = cluster_to_sentences_dict[cluster]
+		for each_sentence in current_cluster:
+			corpus_similarity += cosine_similarity(each_sentence,sentence)
+
+	return corpus_similarity		
+
+def extractSummary(cluster_to_sentences_dict):
+	global Summary
+	global lamda
+	global alpha
+	for cluster in cluster_to_sentences_dict:
+		current_cluster = cluster_to_sentences_dict[cluster]
+		for each_sentence in current_cluster:
+			summary_sim = calculateSimilarityWithSummary(each_sentence)
+			corpus_sim = calculaterSimilarityWithCorpus(each_sentence)
+			
+
+
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
 for cluster in os.listdir('.'):
@@ -147,6 +224,9 @@ for cluster in os.listdir('.'):
 	convertFiletoMatFormat()
 	noOfClusters = clusterSentences(datasetFolder)
 	mapSentencetoCluster()
+	cluster_to_sentences_dict = consolidateClusters()
+
+
 
 
 
