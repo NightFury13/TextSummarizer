@@ -4,13 +4,14 @@ import sys
 import re,os
 import math
 from collections import defaultdict
+from copy import deepcopy
 
 st = Stemmer('english')
 pattern=re.compile(r'[\d+\.]*[\d]+|[^\w]+') #pattern to detect numbers (real/integer) non alphanumeric (no underscore)
 
 Summary = []
 lamda = 5
-alpha  = 0.1
+alpha  = 0.25
 #stopword dictionary from "stopwords.txt" file
 
 stopWordDict = defaultdict(int)
@@ -146,6 +147,7 @@ def consolidateClusters():
 	cluster_to_sentences_dict = defaultdict(list)
 	for line in clusterSentencesFile.readlines():
 		lin,cluster = line.split('$')
+		cluster = cluster.replace('\n','')
 		if cluster in cluster_to_sentences_dict:
 			cluster_to_sentences_dict[cluster].append(lin)
 		else:
@@ -185,10 +187,11 @@ def cosine_similarity(sent1,sent2):
 
 	return ((cosine_sim_sum)/(root_sum_sent1*root_sum_sent2))
 
-def calculateSimilarityWithSummary(sentence):
-	global Summary
+def calculateSimilarityWithSummary(sentence,summary):
 	Summary_similarity = 0
-	for i in Summary:
+#	print "#############"
+#	print summary
+	for i in summary:
 		Summary_similarity += cosine_similarity(sentence,i)
 
 	return Summary_similarity
@@ -203,16 +206,79 @@ def calculaterSimilarityWithCorpus(sentence):
 
 	return corpus_similarity		
 
+def getTotalSenteces():
+	fp = open('sentence-cluster-sorted-index.txt','r')
+	text = fp.readlines()
+	return len(text)
+
+def getDiversity(total_sentences,summary):
+	global cluster_to_sentences_dict
+	diversity_measure = 0
+	for cluster in cluster_to_sentences_dict:
+		current_cluster = cluster_to_sentences_dict[cluster]
+		intersection_set = set(summary).intersection(set(current_cluster))
+		cluster_diversity = 0
+		for sentence in intersection_set:
+			cluster_diversity += (calculaterSimilarityWithCorpus(sentence)*1.0)/total_sentences
+
+		diversity_measure += math.sqrt(cluster_diversity)
+
+	return diversity_measure		
+
 def extractSummary(cluster_to_sentences_dict):
 	global Summary
 	global lamda
 	global alpha
+
+	total_sentences = getTotalSenteces()
+
+	current_sentence = ""
+	current_score = 0
+	max_sentence = ""
+	max_score = 0
+	covereage = 0
 	for cluster in cluster_to_sentences_dict:
 		current_cluster = cluster_to_sentences_dict[cluster]
+	#	print current_cluster
 		for each_sentence in current_cluster:
-			summary_sim = calculateSimilarityWithSummary(each_sentence)
-			corpus_sim = calculaterSimilarityWithCorpus(each_sentence)
-			
+		#	print each_sentence
+		#	print Summary
+			if each_sentence not in Summary:
+		#		print "yes"
+
+				############################## Compute covereage ##############################
+	#			current_summary = []
+				current_summary = deepcopy(Summary)
+				current_summary.append(each_sentence)
+			#	print type(each_sentence)
+			#	print current_summary
+				summary_sim = calculateSimilarityWithSummary(each_sentence,current_summary)
+				corpus_sim = calculaterSimilarityWithCorpus(each_sentence)
+				covereage += min(summary_sim,(alpha*corpus_sim))
+
+				############################### Compute Diversity #############################
+
+				diversity = getDiversity(total_sentences,current_summary)
+
+				############################### Greedily Check ################################
+
+				current_score = covereage + lamda*diversity
+				current_sentence = each_sentence
+				if current_score > max_score:
+					max_score = current_score
+					max_sentence = current_sentence
+
+	Summary.append(max_sentence)
+	#print max_sentence
+	#print max_score
+
+
+
+
+
+
+
+
 
 
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
@@ -225,6 +291,10 @@ for cluster in os.listdir('.'):
 	noOfClusters = clusterSentences(datasetFolder)
 	mapSentencetoCluster()
 	cluster_to_sentences_dict = consolidateClusters()
+#	print cluster_to_sentences_dict
+	for i in xrange(5):
+		extractSummary(cluster_to_sentences_dict)
+	print Summary	
 
 
 
