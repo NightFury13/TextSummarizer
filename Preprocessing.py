@@ -5,6 +5,7 @@ import re,os
 import math
 from collections import defaultdict
 from copy import deepcopy
+import subprocess
 
 st = Stemmer('english')
 pattern=re.compile(r'[\d+\.]*[\d]+|[^\w]+') #pattern to detect numbers (real/integer) non alphanumeric (no underscore)
@@ -71,7 +72,7 @@ def generateInverseDocFrequency(corpus):
 	return idf_scores	
 
 def generateClusterInputFile(corpus):
-	ClusterInputFile = "../../SentencesToCluster.txt"
+	ClusterInputFile = "../../Temp/SentencesToCluster.txt"
 	ClusterInputFile_ptr = open(ClusterInputFile,'w')
 	for each_doc in corpus:
 		current_doc = corpus[each_doc]
@@ -87,15 +88,18 @@ def generateClusterInputFile(corpus):
 
 def convertFiletoMatFormat():
 	os.chdir("../..")
-	os.system("perl doc2mat/doc2mat -mystoplist=stopwords.txt -nlskip=1 -skipnumeric SentencesToCluster.txt ClutoInput.mat")
+	if not os.path.exists("Temp"):
+		os.makedirs("Temp")
+	os.system("perl doc2mat/doc2mat -mystoplist=stopwords.txt -nlskip=1 -skipnumeric Temp/SentencesToCluster.txt Temp/ClutoInput.mat")
 
 def clusterSentences(folder):
 	line_count = 0
-	ClusterFile = open("SentencesToCluster.txt",'r')
+	ClusterFile = open("Temp/SentencesToCluster.txt",'r')
 	for line in ClusterFile.readlines():
 		line_count+=1
 	print line_count	
-	os.system("cluto/Linux/vcluster -clmethod=rbr -sim=cos -cstype=best -niter=100 -seed=45 ClutoInput.mat "+str(line_count/5))
+	os.system("cluto/Linux/vcluster -clmethod=rbr -sim=cos -cstype=best -niter=100 -seed=45 Temp/ClutoInput.mat "+str(line_count/5))
+	os.system("mv ClutoInput.* Temp/")
 	return line_count/5
 	# Here -clmethod can be replaced with 'direct' for conventional k-Means
 	# But in general 'rbr', works for efficiently
@@ -106,7 +110,7 @@ def clusterSentences(folder):
 #	os.chdir(folder) 
 
 def mapSentencetoCluster():
-	sentenceFile = open("SentencesToCluster.txt",'r')
+	sentenceFile = open("Temp/SentencesToCluster.txt",'r')
 	sentences = sentenceFile.readlines()
 	sentenceFile.close()
 
@@ -115,7 +119,7 @@ def mapSentencetoCluster():
 
 	# Creating cluster number index.
 
-	clusterFile = open("ClutoInput.mat.clustering."+str(noOfClusters),'r')
+	clusterFile = open("Temp/ClutoInput.mat.clustering."+str(noOfClusters),'r')
 	clusterIndex = clusterFile.readlines()
 	clusterFile.close()
 
@@ -135,7 +139,7 @@ def mapSentencetoCluster():
 	clusterSentenceIndex.sort()
 
 	# Printing the sentences into the file.
-	outputIndexFile= open('sentence-cluster-sorted-index.txt','w')
+	outputIndexFile= open('Temp/sentence-cluster-sorted-index.txt','w')
 	for idx in range(len(clusterSentenceIndex)):
 		if int(clusterSentenceIndex[idx][0]) >= 0:			# Handles Unneccesary empty sentences
 			line = clusterSentenceIndex[idx][1]+'$'+clusterSentenceIndex[idx][0]+'\n'
@@ -143,7 +147,7 @@ def mapSentencetoCluster():
 	outputIndexFile.close()
 
 def consolidateClusters():
-	clusterSentencesFile = open('sentence-cluster-sorted-index.txt','r')
+	clusterSentencesFile = open('Temp/sentence-cluster-sorted-index.txt','r')
 	cluster_to_sentences_dict = defaultdict(list)
 	for line in clusterSentencesFile.readlines():
 		lin,cluster = line.split('$')
@@ -207,7 +211,7 @@ def calculaterSimilarityWithCorpus(sentence):
 	return corpus_similarity		
 
 def getTotalSenteces():
-	fp = open('sentence-cluster-sorted-index.txt','r')
+	fp = open('Temp/sentence-cluster-sorted-index.txt','r')
 	text = fp.readlines()
 	return len(text)
 
@@ -269,10 +273,10 @@ def extractSummary(cluster_to_sentences_dict):
 					max_sentence = current_sentence
 
 	Summary.append(max_sentence)
-	#print max_sentence
-	#print max_score
+	print max_score
+	print Summary
 
-
+	
 
 
 
@@ -283,18 +287,41 @@ def extractSummary(cluster_to_sentences_dict):
 
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
-for cluster in os.listdir('.'):
-	document_to_senctence_corpus = extractDocumentCorpus(cluster)
-	idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
-	generateClusterInputFile(document_to_senctence_corpus)
-	convertFiletoMatFormat()
-	noOfClusters = clusterSentences(datasetFolder)
-	mapSentencetoCluster()
-	cluster_to_sentences_dict = consolidateClusters()
-#	print cluster_to_sentences_dict
-	for i in xrange(5):
-		extractSummary(cluster_to_sentences_dict)
-	print Summary	
+alphatoRouge = defaultdict(float)
+alpha = 0.25
+while alpha<0.9:
+	rougue_score=[]
+	for cluster in os.listdir('.'):
+		Summary =[]
+		document_to_senctence_corpus = extractDocumentCorpus(cluster)
+		idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
+		generateClusterInputFile(document_to_senctence_corpus)
+		convertFiletoMatFormat()
+		noOfClusters = clusterSentences(datasetFolder)
+		mapSentencetoCluster()
+		cluster_to_sentences_dict = consolidateClusters()
+	#	print cluster_to_sentences_dict
+		for i in xrange(6):
+			extractSummary(cluster_to_sentences_dict)
+		outfile = open('Temp/Summaryoutput.txt','w')
+		for i in Summary:
+			outfile.write(i+'\n')
+		outfile.close()
+		output = subprocess.check_output("java -cp C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE Temp/Summaryoutput.txt DUC-2004/Test_Summaries/"+cluster+"/ 1 B R",shell=True)
+		output = float(output)
+		rougue_score.append(output) 
+		print cluster
+		print output
+
+		os.system("rm -rf Temp/")
+		if not os.path.exists("Temp"):
+			os.makedirs("Temp")
+		os.chdir(datasetFolder)
+	alpha+=1.1
+	alphatoRouge[alpha] = sum(rougue_score)/len(rougue_score)
+	print alphatoRouge
+
+		
 
 
 
@@ -313,7 +340,6 @@ for cluster in os.listdir('.'):
 	## 	sorted order!.
 
 
-	break
 	
 		
 
