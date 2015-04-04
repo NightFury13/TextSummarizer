@@ -11,15 +11,14 @@ st = Stemmer('english')
 pattern=re.compile(r'[\d+\.]*[\d]+|[^\w]+') #pattern to detect numbers (real/integer) non alphanumeric (no underscore)
 
 Summary = []
-lamda = 5
-alpha  = 0.25
+lamda = 6
+alpha  = 0.75
 #stopword dictionary from "stopwords.txt" file
 
 stopWordDict = defaultdict(int)
 stopWordFile = open("./stopwords.txt","r")
 for line in stopWordFile:
 	stopWordDict[line.strip()]=1
-
 
 def extractDocumentCorpus(folder):
 	os.chdir(folder)
@@ -107,8 +106,6 @@ def clusterSentences(folder):
 	# seed determines the start of randomness selection points
 	# cstype chooses l2 as clustering criterion.
 
-#	os.chdir(folder) 
-
 def mapSentencetoCluster():
 	sentenceFile = open("Temp/SentencesToCluster.txt",'r')
 	sentences = sentenceFile.readlines()
@@ -193,8 +190,6 @@ def cosine_similarity(sent1,sent2):
 
 def calculateSimilarityWithSummary(sentence,summary):
 	Summary_similarity = 0
-#	print "#############"
-#	print summary
 	for i in summary:
 		Summary_similarity += cosine_similarity(sentence,i)
 
@@ -229,10 +224,23 @@ def getDiversity(total_sentences,summary):
 
 	return diversity_measure		
 
+def getCoverage(summary):
+	global cluster_to_sentences_dict
+	covereage_measure=0
+	for cluster in cluster_to_sentences_dict:
+		current_cluster = cluster_to_sentences_dict[cluster]
+		for each_sentence in current_cluster:
+			Summary_similarity = calculateSimilarityWithSummary(each_sentence,summary)
+			corpus_similarity = calculaterSimilarityWithCorpus(each_sentence)
+			covereage_measure += min(Summary_similarity,(alpha*corpus_similarity))
+
+	return covereage_measure		
+
 def extractSummary(cluster_to_sentences_dict):
 	global Summary
 	global lamda
 	global alpha
+	global current_size
 
 	total_sentences = getTotalSenteces()
 
@@ -241,13 +249,21 @@ def extractSummary(cluster_to_sentences_dict):
 	max_sentence = ""
 	max_score = 0
 	covereage = 0
+	max_cluster=-1
+	check_cluster=-1
+	curent_cov=-1
+	current_div=-1
+	max_cov=-1
+	max_div=-1
+	max_sumsin=-1
+	max_corsim =-1
 	for cluster in cluster_to_sentences_dict:
 		current_cluster = cluster_to_sentences_dict[cluster]
 	#	print current_cluster
-		for each_sentence in current_cluster:
+		for each_sentence in current_cluster :
 		#	print each_sentence
 		#	print Summary
-			if each_sentence not in Summary:
+			if (each_sentence not in Summary) and (current_size+len(each_sentence)<665):
 		#		print "yes"
 
 				############################## Compute covereage ##############################
@@ -256,9 +272,11 @@ def extractSummary(cluster_to_sentences_dict):
 				current_summary.append(each_sentence)
 			#	print type(each_sentence)
 			#	print current_summary
-				summary_sim = calculateSimilarityWithSummary(each_sentence,current_summary)
-				corpus_sim = calculaterSimilarityWithCorpus(each_sentence)
-				covereage += min(summary_sim,(alpha*corpus_sim))
+
+				covereage = getCoverage(current_summary)
+			#	summary_sim = calculateSimilarityWithSummary(each_sentence,current_summary)
+			#	corpus_sim = calculaterSimilarityWithCorpus(each_sentence)
+			#	covereage = min(summary_sim,(alpha*corpus_sim))
 
 				############################### Compute Diversity #############################
 
@@ -266,33 +284,50 @@ def extractSummary(cluster_to_sentences_dict):
 
 				############################### Greedily Check ################################
 
-				current_score = covereage + lamda*diversity
+				current_score = covereage + (lamda*diversity)
 				current_sentence = each_sentence
+				check_cluster =cluster
+			#	print" ###################"
+			#	print covereage
+			#	print diversity
+			#	print current_score
+			#	print each_sentence
+			#	print "###################"
 				if current_score > max_score:
 					max_score = current_score
 					max_sentence = current_sentence
+					max_cluster=check_cluster
+					max_cov=covereage
+					max_div=diversity
+				#	max_corsim = corpus_sim
+				#	max_sumsin = summary_sim
 
 	Summary.append(max_sentence)
-	print max_score
-	print Summary
-
-	
-
-
-
-
-
-
-
-
+	current_size+=len(max_sentence)
+#	print max_score
+#	print max_sentence
+#	print current_size
+#	print max_cluster
+#	print max_cov
+#	print max_div
+#	print max_corsim
+#	print max_sumsin
+#	print "########################3"
+#
+current_size =0
+main_output_file = open('Final_Output.txt','w')
+main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
 alphatoRouge = defaultdict(float)
-alpha = 0.25
+alpha = 0.4
 while alpha<0.9:
 	rougue_score=[]
 	for cluster in os.listdir('.'):
+		current_size=0
 		Summary =[]
+		if not os.path.exists("../../Temp"):
+			os.makedirs("../../Temp")
 		document_to_senctence_corpus = extractDocumentCorpus(cluster)
 		idf_scores = generateInverseDocFrequency(document_to_senctence_corpus)
 		generateClusterInputFile(document_to_senctence_corpus)
@@ -301,34 +336,30 @@ while alpha<0.9:
 		mapSentencetoCluster()
 		cluster_to_sentences_dict = consolidateClusters()
 	#	print cluster_to_sentences_dict
-		for i in xrange(6):
+		for i in xrange(5):
 			extractSummary(cluster_to_sentences_dict)
 		outfile = open('Temp/Summaryoutput.txt','w')
+		print Summary
 		for i in Summary:
 			outfile.write(i+'\n')
 		outfile.close()
 		output = subprocess.check_output("java -cp C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE Temp/Summaryoutput.txt DUC-2004/Test_Summaries/"+cluster+"/ 1 B R",shell=True)
 		output = float(output)
-		rougue_score.append(output) 
-		print cluster
-		print output
+		output1 = subprocess.check_output("java -cp C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE Temp/Summaryoutput.txt DUC-2004/Test_Summaries/"+cluster+"/ 1 B F",shell=True)
+		output1 = float(output1)
+		rougue_score.append(output)
+		main_output_file.write(str(cluster)+"\t"+str(output)+"\t"+str(output1)+"\n")
+		#break
 
-		os.system("rm -rf Temp/")
+	#	os.system("rm -rf Temp/")
 		if not os.path.exists("Temp"):
 			os.makedirs("Temp")
 		os.chdir(datasetFolder)
 	alpha+=1.1
 	alphatoRouge[alpha] = sum(rougue_score)/len(rougue_score)
 	print alphatoRouge
-
-		
-
-
-
-
-
-
-
+	break 
+main_output_file.close()
 	################################################################
 	#														       #
 	#			Here we need to start clustering the Docs          #
@@ -338,10 +369,3 @@ while alpha<0.9:
 
 	## Assuming Here basically we have a clustered file which has sentences followed by the cluster they belong in 
 	## 	sorted order!.
-
-
-	
-		
-
-
-
