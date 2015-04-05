@@ -81,7 +81,10 @@ def generateClusterInputFile(corpus):
 		print len(sentences)
 	#	break
 		for each_sentence in sentences:
-			ClusterInputFile_ptr.write(each_sentence+'\n')
+			if len(each_sentence)>1:
+				if each_sentence[0]==' ':
+					each_sentence = each_sentence[1:]
+				ClusterInputFile_ptr.write(each_sentence+'\n')
 
 	ClusterInputFile_ptr.close()
 
@@ -97,9 +100,9 @@ def clusterSentences(folder):
 	for line in ClusterFile.readlines():
 		line_count+=1
 	print line_count	
-	os.system("cluto/Linux/vcluster -clmethod=rbr -sim=cos -cstype=best -niter=100 -seed=45 Temp/ClutoInput.mat "+str(line_count/5))
+	os.system("cluto/Linux/vcluster -clmethod=bagglo -sim=cos -niter=100 -seed=45 Temp/ClutoInput.mat "+str(line_count/10))
 	os.system("mv ClutoInput.* Temp/")
-	return line_count/5
+	return line_count/10
 	# Here -clmethod can be replaced with 'direct' for conventional k-Means
 	# But in general 'rbr', works for efficiently
 	# Limiting maximum number of iteration to 100 and setting similarity to 'cosine'
@@ -185,13 +188,16 @@ def cosine_similarity(sent1,sent2):
 
 	root_sum_sent1 = math.sqrt(root_sum_sent1)
 	root_sum_sent2 = math.sqrt(root_sum_sent2)
+#	print sent1
+#	print sent2
 
 	return ((cosine_sim_sum)/(root_sum_sent1*root_sum_sent2))
 
 def calculateSimilarityWithSummary(sentence,summary):
 	Summary_similarity = 0
 	for i in summary:
-		Summary_similarity += cosine_similarity(sentence,i)
+		if len(i)>1:
+			Summary_similarity += cosine_similarity(sentence,i)
 
 	return Summary_similarity
 
@@ -201,7 +207,8 @@ def calculaterSimilarityWithCorpus(sentence):
 	for cluster in cluster_to_sentences_dict:
 		current_cluster = cluster_to_sentences_dict[cluster]
 		for each_sentence in current_cluster:
-			corpus_similarity += cosine_similarity(each_sentence,sentence)
+			if len(each_sentence)>1:
+				corpus_similarity += cosine_similarity(each_sentence,sentence)
 
 	return corpus_similarity		
 
@@ -226,13 +233,15 @@ def getDiversity(total_sentences,summary):
 
 def getCoverage(summary):
 	global cluster_to_sentences_dict
+	total_sentences = getTotalSenteces()
 	covereage_measure=0
 	for cluster in cluster_to_sentences_dict:
 		current_cluster = cluster_to_sentences_dict[cluster]
 		for each_sentence in current_cluster:
-			Summary_similarity = calculateSimilarityWithSummary(each_sentence,summary)
-			corpus_similarity = calculaterSimilarityWithCorpus(each_sentence)
-			covereage_measure += min(Summary_similarity,(alpha*corpus_similarity))
+			if len(each_sentence)>1:
+				Summary_similarity = calculateSimilarityWithSummary(each_sentence,summary)
+				corpus_similarity = calculaterSimilarityWithCorpus(each_sentence)
+				covereage_measure += min(Summary_similarity,((alpha*1.0*corpus_similarity)/total_sentences))
 
 	return covereage_measure		
 
@@ -317,11 +326,12 @@ def extractSummary(cluster_to_sentences_dict):
 current_size =0
 main_output_file = open('Final_Output.txt','w')
 main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
+main_output_file.close()
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
 alphatoRouge = defaultdict(float)
-alpha = 0.4
-while alpha<0.9:
+alpha = 15
+while alpha<35:
 	rougue_score=[]
 	for cluster in os.listdir('.'):
 		current_size=0
@@ -348,14 +358,17 @@ while alpha<0.9:
 		output1 = subprocess.check_output("java -cp C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE Temp/Summaryoutput.txt DUC-2004/Test_Summaries/"+cluster+"/ 1 B F",shell=True)
 		output1 = float(output1)
 		rougue_score.append(output)
+		main_output_file = open("Final_Output.txt",'a')
 		main_output_file.write(str(cluster)+"\t"+str(output)+"\t"+str(output1)+"\n")
+		print str(cluster)+"\t"+str(output)+"\t"+str(output1)
+		main_output_file.close()
 		#break
 
 	#	os.system("rm -rf Temp/")
 		if not os.path.exists("Temp"):
 			os.makedirs("Temp")
 		os.chdir(datasetFolder)
-	alpha+=1.1
+	alpha+=10
 	alphatoRouge[alpha] = sum(rougue_score)/len(rougue_score)
 	print alphatoRouge
 	break 
