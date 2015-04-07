@@ -1,0 +1,51 @@
+Changes in 2.1.1
+  - Fixed problems with the postscript output driver and newer versions
+    of ghostscript.
+  - Fixed problems with incorrect bitmap sizes for gif output format.
+  - Fixed various font problems with the xfig output format.
+  - Fixed a bug associated with incorrectly computing the similarities
+    in the hierarchical tree files.
+  - Corrected the ISIM values reported by the scluster program. 
+  - Fixed a bug in -showsummaries=itemsets.
+  - Corrected the information displayed during -help for -showsummaries.
+  - Reduced the memory requirements of the rb-based clustering methods.
+
+Changes in 2.1.0
+  - Added a -showsummaries option for analyzing the co-occurrence
+    of the key features within the objects of each cluster.
+  - Added an agglomerative algorithm that uses partitional-clustering
+    to bias the agglomeration.
+  - Added similarity function based on extended Jackard coefficient 
+    for graphs.
+  - Added a cluster-selection method for repeated bisecting clustering
+    that is based on the cardinality of the cluster's sub-space.
+  - Streamlined some of the parameters of vcluster & scluster.
+  - Fixed a major bug with Euclidean distance calculations on sparse
+    datasets.
+
+Changes in 2.0.0
+  - The new clustering programs are now called vcluster & scluster
+  - Added graph-partitioning based clustering algorithms
+  - Expanded all algorithms to operate on the object-to-object
+    similarity graph.
+  - Added -agglofrom and -agglocrfun functionality for hybrid
+    clustering
+  - Fixed many bugs
+
+Changes in 1.5.1a
+  - Fixed an improperly linked vacluster binary for Win32 platforms.
+
+Changes in 1.5.1
+  - Fixed some bugs associated with the -fulltree option and the 
+    CLUTO_V_BuildTree routine. 
+
+Changes in 1.5.0
+  - Added a set of fully functional agglomerative clustering
+    algorithms.
+  - Added support for hybrid partitional and agglomerative 
+    clustering.
+  - Added an extensive set of cluster visualization capabilities.
+  - Added support for correlation coefficient based similarities.
+  - Added support for dense input files.
+
+    

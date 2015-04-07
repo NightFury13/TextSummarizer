@@ -1,0 +1,15 @@
+java -cp C_ROUGE.jar executiverouge.C_ROUGE7 [SystemSummary]  [ReferenceSummaryFolderPath]  [N] [C] [T]
+Parameters
+-----------
+SystemSummary-Summary Created By Your System
+ReferenceSummaryFolderPath-Folder Containing DUC-2004 Human Created Summaries for the same corpus 
+N-N value ROUGE-N to be calculated
+C-'A' for average rouge score
+  'B' best rouge score out of reference summaries
+T- 'R' or 'F'
+   R-for Rouge-R
+   F-for Rouge F 
+
+example:-
+
+ java -cp C_ROUGE.jar executiverouge.C_ROUGE /home/kjjose/Desktop/KJJE_MULTI_DOCUMENT_SUMMARIZER7/Zummary7  /home/kjjose/Desktop/KJJE_MULTI_DOCUMENT_SUMMARIZER7/Test_Summaries/d30001t 675 B R 

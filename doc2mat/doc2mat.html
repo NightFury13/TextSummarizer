@@ -1,0 +1,136 @@
+<HTML>
+<HEAD>
+<TITLE>doc2mat - Converting documents into the vector-space format used by CLUTO</TITLE>
+<LINK REV="made" HREF="mailto:bhcompile@daffy.perf.redhat.com">
+</HEAD>
+
+<BODY>
+
+<A NAME="__index__"></A>
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#name">NAME</A></LI>
+	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
+	<LI><A HREF="#arguments">ARGUMENTS</A></LI>
+	<LI><A HREF="#options">OPTIONS</A></LI>
+	<LI><A HREF="#description">DESCRIPTION</A></LI>
+	<LI><A HREF="#author">AUTHOR</A></LI>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="name">NAME</A></H1>
+<P>doc2mat - Converting documents into the vector-space format used by CLUTO</P>
+<P>
+<HR>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+<P>doc2mat [options] doc-file mat-file</P>
+<P>
+<HR>
+<H1><A NAME="arguments">ARGUMENTS</A></H1>
+<P><STRONG>doc2mat</STRONG> takes as input two arguments. The first argument is the
+name of the file that stores the documents to be converted into 
+the vector-space format used by CLUTO and the second argument is
+the name of the file that stores the resulting document-term matrix.</P>
+<DL>
+<DT><STRONG><A NAME="item_doc%2Dfile"><STRONG>doc-file</STRONG></A></STRONG><BR>
+<DD>
+This is the name of the file that stores the documents using one document 
+at each line format.
+<P></P>
+<DT><STRONG><A NAME="item_mat%2Dfile"><STRONG>mat-file</STRONG></A></STRONG><BR>
+<DD>
+This is the name of the file that will store the generated CLUTO compatible 
+mat file, and the file-stem for the .clabel file and the .rlabel file if it
+is applicable.
+<P></P></DL>
+<P>
+<HR>
+<H1><A NAME="options">OPTIONS</A></H1>
+<DL>
+<DT><STRONG><A NAME="item_%2Dnostem"><STRONG>-nostem</STRONG></A></STRONG><BR>
+<DD>
+Disable word stemming. By default all words are stemmed.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dnostop"><STRONG>-nostop</STRONG></A></STRONG><BR>
+<DD>
+Disable the elimination of stop words using the internal list of 
+stop words. By default stop words are eliminated.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dmystoplist%3Dfile"><STRONG>-mystoplist=file</STRONG></A></STRONG><BR>
+<DD>
+Specifies a user supplied file that specifies local stop-words.
+If the <STRONG>-nostop</STRONG> option has been specified, then by providing
+a user-supplied file you essentially over-ride all internal stop
+words.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dskipnumeric"><STRONG>-skipnumeric</STRONG></A></STRONG><BR>
+<DD>
+Specifies that any words that contain numeric digits are to be 
+eliminated. By default, a token that contains numeric digits is 
+retained.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dminwlen%3Dint"><STRONG>-minwlen=int</STRONG></A></STRONG><BR>
+<DD>
+Specifies the length of the smallest token to be kept prior to stemming.
+The default value is three.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dnlskip%3Dint"><STRONG>-nlskip=int</STRONG></A></STRONG><BR>
+<DD>
+Indicates the number of leading tokens to be ignored during
+text processing. This parameter is useful for ignoring any
+document identifier information that may be in the beginning
+of each document line. The default value is zero.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dtokfile"><STRONG>-tokfile</STRONG></A></STRONG><BR>
+<DD>
+Writes the token representation of each document after performing the
+tokenization and/or stemming and stop-word elimination.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dhelp"><STRONG>-help</STRONG></A></STRONG><BR>
+<DD>
+Displays this information.
+<P></P></DL>
+<P>
+<HR>
+<H1><A NAME="description">DESCRIPTION</A></H1>
+<P><STRONG>doc2mat</STRONG> convertes a set of documents into a vector-space format
+and stores the resulting document-term matrix into a mat-file that
+is compatible with CLUTO's clustering algorithms.</P>
+<P>The documents are supplied in the file <EM>doc-file</EM>, and each document
+must be stored on a single line in that file. As a result, the total
+number of documents in the resulting document-term matrix will be equal
+to the number of rows in the file <EM>doc-file</EM>.</P>
+<P><STRONG>doc2mat</STRONG> supports both word stemming (using Porter's stemming algorithm)
+and stop-word elimination. It contains a default list of stop-words that
+it can be either ignored or augmented by providing an file containing a
+list of words to be eliminated as well. This user-supplied stop-list
+file is supplied using the <STRONG>-mystoplist</STRONG> option and should contain
+a white-space separated list of words. All of these words can be on 
+the same line or multiple lines. Note that stop-word elimination occurs
+before stemming, so the user-supplied stop words should not be stemmed.</P>
+<P>The tokenization performed by <STRONG>doc2mat</STRONG> is quite straight-forward. It
+starts by replacing all non-alphanumeric characters with spaces, and
+then the white-space characters are used to break up the line into 
+tokens. Each of these tokens is then checked against the stop-list, 
+and if they are not there they get stemmed. By using the <STRONG>-skipnumeric</STRONG> 
+option you can force <STRONG>doc2mat</STRONG> to eliminate any tokens that contain
+numeric digits. Also, by specifying the <STRONG>-tokfile</STRONG> option, <STRONG>doc2mat</STRONG> 
+will create a file called <EM>mat-file.tokens</EM>, in which each line stores 
+the tokenized form of each document.</P>
+<P>Some of leading fields of each line can potentially store document specific 
+information (e.g., document identifier, class label, <EM>etc</EM>), and they can
+be ignored by using the <STRONG>-nlskip</STRONG> option. In cases in which <STRONG>-nlskip</STRONG> is
+greater than zero, the <STRONG>-nlskip</STRONG> leading tokens are treated as the label
+of each row and they are written in the file called <EM>mat-file.rlabel</EM>.</P>
+<P>
+<HR>
+<H1><A NAME="author">AUTHOR</A></H1>
+<P>George Karypis &lt;<A HREF="mailto:karypis@cs.umn.edu">karypis@cs.umn.edu</A>&gt;</P>
+
+</BODY>
+
+</HTML>
