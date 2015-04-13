@@ -344,10 +344,11 @@ for l in xrange(1,7):
 		main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
 		main_output_file.close()
 		Parallel(n_jobs = numOfCores)(delayed(runDocumentSummarization)(cluster,l,a) for cluster in folder_list)
-		avg_RR = sum(Rouge_R_avg)/len(Rouge_R_avg)
-		avg_RF = sum(Rouge_F_avg)/len(Rouge_F_avg)
-		alpha_lambda_outfile = open('Sweep_GridSearch.txt','a')
-		alpha_lambda_outfile.write(str(l)+"\t"+str(a)+"\t"+str(avg_RR)+"\t"+str(avg_RF)+"\n")
-		alpha_lambda_outfile.close()
+		if len(Rouge_R_avg)>0 and len(Rouge_F_avg):
+			avg_RR = sum(Rouge_R_avg)/len(Rouge_R_avg)
+			avg_RF = sum(Rouge_F_avg)/len(Rouge_F_avg)
+			alpha_lambda_outfile = open('Sweep_GridSearch.txt','a')
+			alpha_lambda_outfile.write(str(l)+"\t"+str(a)+"\t"+str(avg_RR)+"\t"+str(avg_RF)+"\n")
+			alpha_lambda_outfile.close()
 		os.system("rm -rf ../../Temp/*")
 		a+=5
