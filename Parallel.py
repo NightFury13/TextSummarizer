@@ -17,9 +17,9 @@ stopWordFile = open("./stopwords.txt","r")
 for line in stopWordFile:
 	stopWordDict[line.strip()]=1
 
-main_output_file = open('Final_Output.txt','w')
-main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
-main_output_file.close()
+
+alpha_lambda_outfile = open('Sweep_GridSearch.txt','w')
+alpha_lambda_outfile.write('Lambda\tAlpha\tRouge-1 R(avg)\tRouge-1 F(avg)\n')
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
 
@@ -278,7 +278,7 @@ def writeToFile(Summary,folder_name):
 		outfile.write(line+'\n')
 	outfile.close()
 
-def runDocumentSummarization(folder_name):
+def runDocumentSummarization(folder_name,lamda,alpha):
 
 	# for each cluster segmentint corpus
 	corpus = extractDocumentCorpus(folder_name)
@@ -318,8 +318,12 @@ def runDocumentSummarization(folder_name):
 
 	cmd = "java -cp ../../C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE ../../Temp/Summary_"+folder_name+".txt " + "../Test_Summaries/"+folder_name+"/ 1 B R"
 	rouge_r = subprocess.check_output(cmd,shell=True)
+	rouge_r = rouge_r.replace('\n','')
+	Rouge_R_avg.append(float(rouge_r))
 	cmd = "java -cp ../../C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE ../../Temp/Summary_"+folder_name+".txt " + "../Test_Summaries/"+folder_name+"/ 1 B F"
 	rouge_f = subprocess.check_output(cmd,shell=True)
+	rouge_f = rouge_f.replace('\n','')
+	Rouge_F_avg.append(float(rouge_f))
 	main_output_file = open('../../Final_Output.txt','a')
 	main_output_file.write(str(folder_name)+"\t"+str(rouge_r)+"\t"+str(rouge_f)+"\n")
 	main_output_file.close()
@@ -327,8 +331,24 @@ def runDocumentSummarization(folder_name):
 numOfCores = multiprocessing.cpu_count()
 folder_list = os.listdir('.')
 
+Rouge_R_avg = []
+Rouge_F_avg = []
 
-Parallel(n_jobs = numOfCores)(delayed(runDocumentSummarization)(cluster) for cluster in folder_list)
+for l in xrange(1,7):
+	a=15
+	while a<40:
+		main_output_file = open('Final_Output.txt','w')
+		main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
+		main_output_file.close()
+		Parallel(n_jobs = numOfCores)(delayed(runDocumentSummarization)(cluster,l,a) for cluster in folder_list)
+		a+=5
+		avg_RR = sum(Rouge_R_avg)/len(Rouge_R_avg)
+		avg_RF = sum(Rouge_F_avg)/len(Rouge_F_avg)
+		Rouge_F_avg = []
+		Rouge_R_avg = []
+		alpha_lambda_outfile.write(str(l)+"\t"+str(a)+"\t"+str(avg_RR)+"\t"+str(avg_RF)+"\n")
+		os.system("rm -rf ../../Temp/*")
 
 
+alpha_lambda_outfile.close()
 
