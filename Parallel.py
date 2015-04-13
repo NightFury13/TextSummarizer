@@ -20,6 +20,7 @@ for line in stopWordFile:
 
 alpha_lambda_outfile = open('Sweep_GridSearch.txt','w')
 alpha_lambda_outfile.write('Lambda\tAlpha\tRouge-1 R(avg)\tRouge-1 F(avg)\n')
+alpha_lambda_outfile.close()
 datasetFolder = 'DUC-2004/Cluster_of_Docs'
 os.chdir(datasetFolder)
 
@@ -279,6 +280,8 @@ def writeToFile(Summary,folder_name):
 	outfile.close()
 
 def runDocumentSummarization(folder_name,lamda,alpha):
+	global Rouge_R_avg
+	global Rouge_F_avg
 
 	# for each cluster segmentint corpus
 	corpus = extractDocumentCorpus(folder_name)
@@ -331,24 +334,20 @@ def runDocumentSummarization(folder_name,lamda,alpha):
 numOfCores = multiprocessing.cpu_count()
 folder_list = os.listdir('.')
 
-Rouge_R_avg = []
-Rouge_F_avg = []
 
 for l in xrange(1,7):
 	a=15
 	while a<40:
+		Rouge_R_avg = []
+		Rouge_F_avg = []
 		main_output_file = open('Final_Output.txt','w')
 		main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
 		main_output_file.close()
 		Parallel(n_jobs = numOfCores)(delayed(runDocumentSummarization)(cluster,l,a) for cluster in folder_list)
-		a+=5
 		avg_RR = sum(Rouge_R_avg)/len(Rouge_R_avg)
 		avg_RF = sum(Rouge_F_avg)/len(Rouge_F_avg)
-		Rouge_F_avg = []
-		Rouge_R_avg = []
+		alpha_lambda_outfile = open('Sweep_GridSearch.txt','a')
 		alpha_lambda_outfile.write(str(l)+"\t"+str(a)+"\t"+str(avg_RR)+"\t"+str(avg_RF)+"\n")
+		alpha_lambda_outfile.close()
 		os.system("rm -rf ../../Temp/*")
-
-
-alpha_lambda_outfile.close()
-
+		a+=5
