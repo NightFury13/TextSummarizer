@@ -6,31 +6,33 @@ import math
 from collections import defaultdict
 from copy import deepcopy
 import subprocess
-from joblib import Parallel, delayed
-import multiprocessing
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import SpectralClustering
 
 st = Stemmer('english')
 pattern=re.compile(r'[\d+\.]*[\d]+|[^\w]+') #pattern to detect numbers (real/integer) non alphanumeric (no underscore)
+
+Summary = []
+lamda = 6
+alpha  = 0.75
+#stopword dictionary from "stopwords.txt" file
 
 stopWordDict = defaultdict(int)
 stopWordFile = open("./stopwords.txt","r")
 for line in stopWordFile:
 	stopWordDict[line.strip()]=1
 
-
-alpha_lambda_outfile = open('Sweep_GridSearch.txt','w')
-alpha_lambda_outfile.write('Lambda\tAlpha\tRouge-1 R(avg)\tRouge-1 F(avg)\n')
-alpha_lambda_outfile.close()
-datasetFolder = 'DUC-2004/Cluster_of_Docs'
-os.chdir(datasetFolder)
-
 def extractDocumentCorpus(folder):
-	document_to_sentence_corpus = {}
+	os.chdir(folder)
 	print folder
-	for each_file in os.listdir(folder):
-		filename = folder+"/"+each_file
-		fileptr = open(filename,'r')
+	document_to_senctence_corpus = {}
+	for each_file in os.listdir('.'):
+		print each_file
+		fileptr = open(each_file,'r')
 		fileText = fileptr.read()
+		fileText = fileText.replace('Ms.','Ms')
+		fileText = fileText.replace('Mrs.','Mrs')
+		fileText = fileText.replace('Mr.','Mr')
 		l = fileText.split()
 		for i in xrange(len(l)):
 			if (l[i].count('.')>1) or (not l[i].endswith('.')) :
@@ -41,10 +43,14 @@ def extractDocumentCorpus(folder):
 		fileText = re.sub(pattern,' ',fileText)
 		fileText = re.sub(r'[\s]+',' ',fileText)
 		fileText = fileText.replace('_',".")
+	#	print fileText
 		fileptr.close()
-		if each_file not in document_to_sentence_corpus:
-			document_to_sentence_corpus[each_file] = fileText
-	return document_to_sentence_corpus
+		if each_file not in document_to_senctence_corpus:
+	#		print "yes"
+	#		l= fileText.split(".")
+			document_to_senctence_corpus[each_file] = fileText
+	os.chdir("..")
+	return document_to_senctence_corpus
 
 def generateInverseDocFrequency(corpus):
 	total_docs = len(corpus.keys())
@@ -69,17 +75,17 @@ def generateInverseDocFrequency(corpus):
 
 	return idf_scores	
 
-def generateClusterInputFile(corpus,folder_name):
-	ClusterInputFile = "../../Temp/SentencesToCluster_"+folder_name+".txt"
+def generateClusterInputFile(corpus):
+	ClusterInputFile = "../../Temp/SentencesToCluster.txt"
 	ClusterInputFile_ptr = open(ClusterInputFile,'w')
 	for each_doc in corpus:
 		current_doc = corpus[each_doc]
 		sentences = []
 		sentences = current_doc.split('.')
-	#	print each_doc
-	#	print len(sentences)
+		print each_doc
+		print len(sentences)
+	#	break
 		for each_sentence in sentences:
-			each_sentence = re.sub(r'[\s]+',' ',each_sentence)
 			if len(each_sentence)>1:
 				if each_sentence[0]==' ':
 					each_sentence = each_sentence[1:]
@@ -87,75 +93,49 @@ def generateClusterInputFile(corpus,folder_name):
 
 	ClusterInputFile_ptr.close()
 
-def convertFileToMatFormat(folder_name):
-	system_cmd = "perl ../../doc2mat/doc2mat -mystoplist=../../stopwords.txt -nlskip=1 -skipnumeric ../../Temp/SentencesToCluster_"+folder_name+".txt ../../Temp/ClutoInput_"+folder_name+".mat"
-	os.system(system_cmd)
+def clusterSentencesandConsolidate():
+	ClusterFile = open("../../Temp/SentencesToCluster.txt",'r')
+	documents = ClusterFile.readlines()
+	ClusterFile.close()
+	line_count = len(documents)
+	vectorizer = TfidfVectorizer(stop_words='english')
+	X = vectorizer.fit_transform(documents)
 
-def clusterSentences(folder_name):
-	ClusterInputFile = "../../Temp/SentencesToCluster_"+folder_name+".txt"
-	fileptr = open(ClusterInputFile,'r')
-	line_count = len(fileptr.readlines())
-	os.system("../../cluto/Linux/vcluster -clmethod=bagglo -sim=cos -niter=100 -seed=45 ../../Temp/ClutoInput_"+folder_name+".mat "+str(line_count/10))
-	return line_count/10
-	# Here -clmethod can be replaced with 'direct' for conventional k-Means
-	# But in general 'rbr', works for efficiently
-	# Limiting maximum number of iteration to 100 and setting similarity to 'cosine'
-	# seed determines the start of randomness selection points
-	# cstype chooses l2 as clustering criterion.
-
-def mapSentencesToCluster(folder_name,NoOfClusters):
-	sentenceInputFile = "../../Temp/SentencesToCluster_"+folder_name+".txt"
-	sentenceFile = open(sentenceInputFile,'r')
-	sentences = sentenceFile.readlines()
-	sentenceFile.close()
-
-	for idx in range(len(sentences)):
-	    sentences[idx] = sentences[idx].split('\n')[0]
-
-	# Creating cluster number index.
-
-	clusterInputFile = "../../Temp/ClutoInput_"+folder_name+".mat.clustering."+str(NoOfClusters)
-	clusterFile = open(clusterInputFile,'r')
-	clusterIndex = clusterFile.readlines()
-	clusterFile.close()
-
-	for idx in range(len(clusterIndex)):
-	    clusterIndex[idx] = clusterIndex[idx].split('\n')[0]
-
-	# Merging the 2 together.
+	noOfClusters = line_count/10
+	#####
+	model = SpectralClustering(n_clusters=noOfClusters,eigen_solver='arpack',eigen_tol=0.01,assign_labels = 'discretize')
+	y = model.fit_predict(X)
 
 	clusterSentenceIndex = []
-	for idx in range(len(clusterIndex)):
-	    temp = []
-	    temp.append(clusterIndex[idx])
-	    temp.append(sentences[idx])
+	for i in xrange(len(y)):
+		temp = []
+		temp.append(y[i])
+		temp.append(documents[i])
 
-	    clusterSentenceIndex.append(temp)
+		clusterSentenceIndex.append(temp)
 
 	clusterSentenceIndex.sort()
 
-	# Printing the sentences into the file.
-	outputFile = "../../Temp/"+folder_name+".txt"
-	outputIndexFile= open(outputFile,'w')
-	for idx in range(len(clusterSentenceIndex)):
-		if int(clusterSentenceIndex[idx][0]) >= 0:			# Handles Unneccesary empty sentences
-			line = clusterSentenceIndex[idx][1]+'$'+clusterSentenceIndex[idx][0]+'\n'
-			outputIndexFile.write(line)
-	outputIndexFile.close()
+	# Writing to the file
+#	outputIndexFile = open('../../Temp/sentence-sluster-sorted-index.txt','w')
+#	for i in xrange(len(clusterSentenceIndex)):
+#		if int(clusterSentenceIndex[i][0]) >= 0:
+#			line = clusterSentenceIndex[i][1] +'$'+clusterSentenceIndex[i][0]+'\n'
+#			outputIndexFile.write(line)
+#	outputIndexFile.close()		
 
-def consolidateClusters(folder_name):
-	filename = "../../Temp/"+folder_name+".txt"
-	clusterSentencesFile = open(filename,'r')
-	cluster_to_sentences_dict = defaultdict(list)
-	for line in clusterSentencesFile.readlines():
-		lin,cluster = line.split('$')
-		cluster = cluster.replace('\n','')
-		if cluster in cluster_to_sentences_dict:
-			cluster_to_sentences_dict[cluster].append(lin)
+## Consolidate into different clusterd
+	
+	cluster_to_sentence_dict = defaultdict(list)
+	for each_line in clusterSentenceIndex:
+		cluster,sentence=each_line
+		if cluster in cluster_to_sentence_dict:
+			cluster_to_sentence_dict[cluster].append(sentence)
 		else:
-			cluster_to_sentences_dict[cluster] = [lin]
+			cluster_to_sentence_dict[cluster] = [sentence]
 
-	return cluster_to_sentences_dict	
+	return cluster_to_sentence_dict		
+
 
 def removeStopWordsandStemming(sentence):
 	processed_sentence = []
@@ -164,6 +144,7 @@ def removeStopWordsandStemming(sentence):
 			processed_sentence.append(st.stemWord(word))
 
 	return processed_sentence		
+#
 
 def cosine_similarity(sent1,sent2,idf_scores):
 	cosine_sim_sum = 0.0
@@ -209,7 +190,7 @@ def calculaterSimilarityWithCorpus(sentence,cluster_to_sentences_dict,idf_scores
 	return corpus_similarity		
 
 def getTotalSenteces(folder_name):
-	filename = "../../Temp/"+folder_name+".txt"
+	filename = "../../Temp/SentencesToCluster.txt"
 	fp = open(filename,'r')
 	text = fp.readlines()
 	return len(text)
@@ -238,6 +219,13 @@ def getCoverage(summary,total_sentences,cluster_to_sentences_dict,idf_scores,alp
 				covereage_measure += min(Summary_similarity,((alpha*1.0*corpus_similarity)/total_sentences))
 
 	return covereage_measure		
+
+def writeToFile(Summary,folder_name):
+	filename = "../../Temp/Summary_"+folder_name+".txt"
+	outfile = open(filename,'w')
+	for line in Summary:
+		outfile.write(line+'\n')
+	outfile.close()
 
 def extractSummary(Summary,lamda,alpha,current_size,total_sentences,cluster_to_sentences_dict,idf_scores):
 	current_sentence = ""
@@ -272,16 +260,7 @@ def extractSummary(Summary,lamda,alpha,current_size,total_sentences,cluster_to_s
 	current_size+=len(max_sentence)
 	return Summary,current_size,check_flag		
 
-def writeToFile(Summary,folder_name):
-	filename = "../../Temp/Summary_"+folder_name+".txt"
-	outfile = open(filename,'w')
-	for line in Summary:
-		outfile.write(line+'\n')
-	outfile.close()
-
-def runDocumentSummarization(folder_name,lamda,alpha):
-	global Rouge_R_avg
-	global Rouge_F_avg
+def runDocumentSummarization(folder_name):
 
 	# for each cluster segmentint corpus
 	corpus = extractDocumentCorpus(folder_name)
@@ -290,23 +269,16 @@ def runDocumentSummarization(folder_name,lamda,alpha):
 	idf_scores = generateInverseDocFrequency(corpus)
 
 	# Create the clustering Input File
-	generateClusterInputFile(corpus,folder_name)
-
-	# Convert to suitable format for Cluto
-	convertFileToMatFormat(folder_name)
-
-	# Create Cluster using CLUTO
-	NoOfClusters = clusterSentences(folder_name)
-
-	# Mapping Sentences to corresponding Clusters
-	mapSentencesToCluster(folder_name,NoOfClusters)
+	generateClusterInputFile(corpus)
 
 	# Creating individual Dictionaries for each cluster
-	cluster_to_sentences_dict = consolidateClusters(folder_name)
+	cluster_to_sentences_dict = clusterSentencesandConsolidate()
 
 	Summary = []
 	current_length = 0 
 	current_size = 0
+	lamda = 6
+	alpha = 15
 	total_sentences = getTotalSenteces(folder_name)
 
 	while 1:
@@ -314,42 +286,26 @@ def runDocumentSummarization(folder_name,lamda,alpha):
 		if flag == 0:
 			break
 
-	# Write the Output Summary to file
 	writeToFile(Summary,folder_name)
 
 	cmd = "java -cp ../../C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE ../../Temp/Summary_"+folder_name+".txt " + "../Test_Summaries/"+folder_name+"/ 1 B R"
 	rouge_r = subprocess.check_output(cmd,shell=True)
-	rouge_r = rouge_r.replace('\n','')
-	Rouge_R_avg.append(float(rouge_r))
+#	rouge_r = rouge_r.replace('\n','')
+#	Rouge_R_avg.append(float(rouge_r))
 	cmd = "java -cp ../../C_Rouge/C_ROUGE.jar executiverouge.C_ROUGE ../../Temp/Summary_"+folder_name+".txt " + "../Test_Summaries/"+folder_name+"/ 1 B F"
 	rouge_f = subprocess.check_output(cmd,shell=True)
-	rouge_f = rouge_f.replace('\n','')
-	Rouge_F_avg.append(float(rouge_f))
-	final_output_file = "../../"+str(l)+"_"+str(a)+".txt"
-	main_output_file = open(final_output_file,'w')
-	main_output_file.write(str(folder_name)+"\t"+str(rouge_r)+"\t"+str(rouge_f)+"\n")
-	main_output_file.close()
+#	rouge_f = rouge_f.replace('\n','')
+#	Rouge_F_avg.append(float(rouge_f))
+#	main_output_file = open('../../Final_Output.txt','a')
+#	main_output_file.write(str(folder_name)+"\t"+str(rouge_r)+"\t"+str(rouge_f)+"\n")
+#	main_output_file.close()
 
-numOfCores = multiprocessing.cpu_count()
+datasetFolder = 'DUC-2004/Cluster_of_Docs'
+os.chdir(datasetFolder)
+
 folder_list = os.listdir('.')
 
-
-for l in xrange(1,7):
-	a=15
-	while a<40:
-		Rouge_R_avg = []
-		Rouge_F_avg = []
-		final_output_file = "../../"+str(l)+"_"+str(a)+".txt"
-		main_output_file = open(final_output_file,'w')
-		main_output_file.write('ClusterID\tRouge-1 R\tRouge-1 F\n')
-		main_output_file.close()
-		Parallel(n_jobs = numOfCores)(delayed(runDocumentSummarization)(cluster,l,a) for cluster in folder_list)
-		print "Saksham"
-		if len(Rouge_R_avg)>0 and len(Rouge_F_avg):
-			avg_RR = sum(Rouge_R_avg)/len(Rouge_R_avg)
-			avg_RF = sum(Rouge_F_avg)/len(Rouge_F_avg)
-			alpha_lambda_outfile = open('../../Sweep_GridSearch.txt','a')
-			alpha_lambda_outfile.write(str(l)+"\t"+str(a)+"\t"+str(avg_RR)+"\t"+str(avg_RF)+"\n")
-			alpha_lambda_outfile.close()
-		os.system("rm -rf ../../Temp/*")
-		a+=5
+for folder in folder_list:
+	runDocumentSummarization(folder)
+	print folder
+	break
